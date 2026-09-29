@@ -3,6 +3,7 @@ import type { NameHistory } from '../types/history'
 import type { PlacePair } from '../types/placePair'
 import type { ScanItem } from '../types/scan'
 import type { Sheet } from '../types/sheet'
+import type { SheetRevision } from '../types/revision'
 
 const sheets: Sheet[] = [
   {
@@ -381,6 +382,7 @@ class GboldmapDatabase extends Dexie {
   scans!: Table<ScanItem, string>
   placePairs!: Table<PlacePair, string>
   histories!: Table<NameHistory, string>
+  sheetRevisions!: Table<SheetRevision, string>
 
   constructor() {
     super('gboldmap-db')
@@ -407,6 +409,16 @@ class GboldmapDatabase extends Dexie {
             sheet.schemaRev = 2
           })
       })
+
+    // version(3) 新增图幅编号修订仓库，记录换号历史与受影响图幅。
+    // 已有 sheets / scans / placePairs / histories 数据结构保持不变，升级后可继续使用。
+    this.version(3).stores({
+      sheets: 'id, code, year, scale, status, series',
+      scans: 'id, sheetId, importedAt, quality',
+      placePairs: 'id, sheetId, oldName, newName, placeType, certainty',
+      histories: 'id, placePairId, period, changeType',
+      sheetRevisions: 'id, sheetId, oldCode, newCode, status, createdAt',
+    })
 
     this.on('populate', async () => {
       await this.sheets.bulkAdd(sheets)
