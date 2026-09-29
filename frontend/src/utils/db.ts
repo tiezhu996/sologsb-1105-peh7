@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie'
+import type { CodeRevision } from '../types/codeRevision'
 import type { NameHistory } from '../types/history'
 import type { PlacePair } from '../types/placePair'
 import type { ScanItem } from '../types/scan'
@@ -381,6 +382,7 @@ class GboldmapDatabase extends Dexie {
   scans!: Table<ScanItem, string>
   placePairs!: Table<PlacePair, string>
   histories!: Table<NameHistory, string>
+  codeRevisions!: Table<CodeRevision, string>
 
   constructor() {
     super('gboldmap-db')
@@ -407,6 +409,15 @@ class GboldmapDatabase extends Dexie {
             sheet.schemaRev = 2
           })
       })
+
+    // 编号修订：新增修订历史仓库；旧库仅追加索引，既有图幅与扫描件原样保留。
+    this.version(3).stores({
+      sheets: 'id, code, year, scale, status, series',
+      scans: 'id, sheetId, importedAt, quality',
+      placePairs: 'id, sheetId, oldName, newName, placeType, certainty',
+      histories: 'id, placePairId, period, changeType',
+      codeRevisions: 'id, sheetId, status, appliedAt',
+    })
 
     this.on('populate', async () => {
       await this.sheets.bulkAdd(sheets)

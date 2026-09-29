@@ -8,13 +8,16 @@ import { COLOR_MODES, SCAN_QUALITIES } from '../types/scan'
 import { usePlaceSearch } from '../hooks/usePlaceSearch'
 import { estimateSheetSpan, scaleToText } from '../utils/scale'
 import { downloadJson } from '../utils/export'
+import { useCodeRevisionStore } from '../stores/codeRevisionStore'
 import PairRow from '../components/common/PairRow.vue'
 import ScanCard from '../components/common/ScanCard.vue'
 import VacantHint from '../components/common/VacantHint.vue'
+import CodeRevisionPanel from '../components/CodeRevisionPanel.vue'
 
 const route = useRoute()
 const sheetStore = useSheetStore()
 const placeStore = usePlaceStore()
+const revisionStore = useCodeRevisionStore()
 const searchKeyword = ref('')
 const { hits } = usePlaceSearch(searchKeyword)
 const showScanForm = ref(false)
@@ -27,6 +30,7 @@ const sheet = computed(() => {
 const relatedPlaces = computed(() => placeStore.getPairsForSheet(sheetId.value))
 const relatedHits = computed(() => hits.value.filter((hit) => hit.pair.sheetId === sheetId.value))
 const spanEstimate = computed(() => (sheet.value ? estimateSheetSpan(sheet.value.scale, sheet.value.sheetSizeCm) : undefined))
+const pendingItems = computed(() => (sheet.value ? revisionStore.pendingItemsForSheet(sheet.value.id) : []))
 
 function createScanForm(): NewScanItem {
   return {
@@ -73,11 +77,14 @@ function exportSheet(): void {
     sheet: sheet.value,
     scans: sheetStore.getScansForSheet(sheet.value.id),
     placePairs: relatedPlaces.value,
+    codeRevisions: revisionStore.revisionsForSheet(sheet.value.id),
+    pendingItems: pendingItems.value,
+    exportedAt: new Date().toISOString(),
   })
 }
 
 async function initialize(): Promise<void> {
-  await Promise.all([sheetStore.init(), placeStore.init()])
+  await Promise.all([sheetStore.init(), placeStore.init(), revisionStore.init()])
   await sheetStore.loadSheet(sheetId.value)
 }
 
@@ -105,6 +112,9 @@ watch(sheetId, () => {
             <el-tag effect="dark">{{ sheet.status }}</el-tag>
             <el-tag v-if="spanEstimate" effect="dark">
               约 {{ spanEstimate.widthKm }} × {{ spanEstimate.heightKm }} 公里
+            </el-tag>
+            <el-tag v-if="pendingItems.length" type="danger" effect="dark">
+              编号待处理 {{ pendingItems.length }} 项
             </el-tag>
           </div>
         </header>
@@ -196,6 +206,8 @@ watch(sheetId, () => {
         </section>
       </aside>
     </div>
+
+    <CodeRevisionPanel :sheet="sheet" />
 
     <section class="section-title">
       <div>

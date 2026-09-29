@@ -5,10 +5,12 @@ import type { Sheet, SheetScale, SheetStatus } from '../types/sheet'
 import { SHEET_SCALES, SHEET_STATUSES } from '../types/sheet'
 import { useSheetNeighbors } from '../hooks/useSheetNeighbors'
 import { scaleToText } from '../utils/scale'
+import { useCodeRevisionStore } from '../stores/codeRevisionStore'
 import ScaleTag from '../components/common/ScaleTag.vue'
 import VacantHint from '../components/common/VacantHint.vue'
 
 const sheetStore = useSheetStore()
+const revisionStore = useCodeRevisionStore()
 const { getNeighborStatus } = useSheetNeighbors('')
 
 const yearFilter = ref('全部')
@@ -85,6 +87,7 @@ async function submitSheet(): Promise<void> {
 
 onMounted(() => {
   void sheetStore.init()
+  void revisionStore.init()
 })
 </script>
 
@@ -187,9 +190,19 @@ onMounted(() => {
             <div class="sheet-card__code">{{ sheet.code }}</div>
             <div class="sheet-card__series">{{ sheet.series }}</div>
           </div>
-          <el-tag :type="sheet.status === '已编' ? 'success' : sheet.status === '待核' ? 'warning' : 'info'" effect="dark">
-            {{ sheet.status }}
-          </el-tag>
+          <div class="sheet-card__badges">
+            <el-tag
+              v-if="revisionStore.openPendingCount.get(sheet.id)"
+              type="danger"
+              effect="dark"
+              data-testid="pending-badge"
+            >
+              待处理 {{ revisionStore.openPendingCount.get(sheet.id) }}
+            </el-tag>
+            <el-tag :type="sheet.status === '已编' ? 'success' : sheet.status === '待核' ? 'warning' : 'info'" effect="dark">
+              {{ sheet.status }}
+            </el-tag>
+          </div>
         </div>
 
         <h2>{{ sheet.title }}</h2>
@@ -225,3 +238,12 @@ onMounted(() => {
     />
   </section>
 </template>
+
+<style scoped>
+.sheet-card__badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+</style>

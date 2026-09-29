@@ -61,6 +61,18 @@ export const useSheetStore = defineStore('sheet', () => {
     currentSheet.value = sheets.value.find((sheet) => sheet.id === id) ?? (await db.sheets.get(id)) ?? null
   }
 
+  /**
+   * 编号修订在独立事务中批量改写图幅号后，用库内最新结果整体刷新内存，
+   * 保证编目台、详情页与邻接解析立刻引用新号。
+   */
+  async function syncSheetsFromDb(): Promise<void> {
+    const rows = await db.sheets.toArray()
+    sheets.value = sortByYear(rows).reverse()
+    if (currentSheet.value) {
+      currentSheet.value = sheets.value.find((sheet) => sheet.id === currentSheet.value?.id) ?? null
+    }
+  }
+
   async function addScan(input: NewScanItem): Promise<ScanItem> {
     await init()
     const scan: ScanItem = { ...input, id: createId('scan') }
@@ -119,5 +131,6 @@ export const useSheetStore = defineStore('sheet', () => {
     getSheetById,
     getSheetByCode,
     getScansForSheet,
+    syncSheetsFromDb,
   }
 })
